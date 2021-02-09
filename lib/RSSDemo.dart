@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:webfeed/webfeed.dart';
 import 'package:http/http.dart' as http;
-//import 'package:url_launcher/url_launcher.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class RSSDemo extends StatefulWidget {
@@ -17,7 +17,9 @@ class _RSSDemoState extends State<RSSDemo> {
   String _title;
   static const String loadingFeedMsg = 'Loading Feed...';
   static const String feedLoadErrorMsg = 'Error Loading Feed...';
+  static const String feedOpenErrorMsg = 'Error Opening Feed...';
   static const String placeholderImg = 'images/no_image.png';
+  GlobalKey<RefreshIndicatorState> _refreshKey;
 
   Future<RssFeed> loadFeed() async {
     try {
@@ -42,6 +44,18 @@ class _RSSDemoState extends State<RSSDemo> {
     });
   }
 
+  Future<void> openFeed(String url) async {
+    if (await canLaunch(url)) {
+      await launch(
+        url,
+        forceSafariVC: true,
+        forceWebView: false,
+      );
+      return;
+    }
+    updateTitle(feedOpenErrorMsg);
+  }
+
   load() async {
     updateTitle(loadingFeedMsg);
     loadFeed().then((result) {
@@ -57,6 +71,7 @@ class _RSSDemoState extends State<RSSDemo> {
   @override
   void initState() {
     super.initState();
+    _refreshKey = GlobalKey<RefreshIndicatorState>();
     updateTitle(widget.title);
     load();
   }
@@ -109,15 +124,14 @@ class _RSSDemoState extends State<RSSDemo> {
         itemCount: _feed.items.length,
         itemBuilder: (BuildContext context, int index) {
           final item = _feed.items[index];
+          print(item);
           return ListTile(
             title: title(item.title),
             subtitle: subtitle(item.pubDate),
             leading: thumbnail(item.enclosure.url),
             trailing: rightIcon(),
             contentPadding: EdgeInsets.all(5.0),
-            onTap: () {
-              //
-            },
+            onTap: () => openFeed(item.link),
           );
         });
   }
@@ -131,7 +145,11 @@ class _RSSDemoState extends State<RSSDemo> {
         ? Center(
             child: CircularProgressIndicator(),
           )
-        : list();
+        : RefreshIndicator(
+            key: _refreshKey,
+            child: list(),
+            onRefresh: () => load(),
+          );
   }
 
   @override
